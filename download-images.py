@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 
+import logging
 import time
 import random
 import asyncio
@@ -7,7 +8,10 @@ import asyncio
 import aiohttp
 import requests
 import uvloop
+import urllib3
 
+# Suppress InsecureRequestWarning
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def a():
     time.sleep(1)
@@ -64,8 +68,14 @@ IMAGES = [
     'https://images.unsplash.com/photo-1710958695511-5b0242e6868c?q=80&w=1887&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',    
 ]
 
+def get_image_id_generator():
+    i = 1
+    while True:
+        yield i
+        i += 1
+generate_image_id = get_image_id_generator()
 
-def concurrent_download():
+def multithread_download():
     with ThreadPoolExecutor(max_workers=10) as executor:
         executor.map(download_image, IMAGES)
 
@@ -73,16 +83,25 @@ def non_concurrent_download():
     for image in IMAGES:
         download_image(image)
 
+def count_to_5(image_id):
+    print(f"Counting for image with id - {image_id}")
+    for i in range(1, 5):
+        print(f"Image id - {image_id} - {i}")
+
 def download_image(image_url):
-    print("Downloading image")
+    image_id=next(generate_image_id)
+    count_to_5(image_id)
+    print(f"Downloading image - {image_id}")
     response = requests.get(image_url, verify=False)
-    print(f"Downloaded image: {response.status_code}")
+    print(f"Downloaded image with id - {image_id}. response - {response.status_code}")
 
 async def async_download_image(image_url):
-    print(f"Downloading image: {image_url}")
+    image_id=next(generate_image_id)
+    count_to_5(image_id)
+    print(f"Downloading image: {image_id}")
     async with aiohttp.ClientSession() as session:
         async with session.get(image_url, verify_ssl=False) as response:
-            print(f"Downloaded image: {response.status}")
+            print(f"Downloaded image with id - {image_id}. response - {response.status}")
             return image_url
 
 async def async_main():
@@ -96,10 +115,10 @@ async def async_main():
 if __name__ == "__main__":
     begin_time = time.time() 
 
-    # concurrent_download() # multi threading
     # non_concurrent_download() # single threading
+    multithread_download() # multi threading
     # res = asyncio.run(async_main()) # asyncio
-    # res = uvloop.run(async_main()) # uvloop over asyncio
+    res = uvloop.run(async_main()) # uvloop over asyncio
 
     total_time = time.time() - begin_time
     print(f"Total time: {total_time}")
